@@ -1,0 +1,33 @@
+# Global owners
+* @IbrahimAyad
+
+# Database and Infrastructure
+/supabase/ @IbrahimAyad
+/src/lib/supabase.ts @IbrahimAyad
+/src/lib/database.ts @IbrahimAyad
+*.sql @IbrahimAyad
+
+# Business Operations
+/src/components/cart/ @IbrahimAyad
+/src/components/admin/orders/ @IbrahimAyad
+/supabase/functions/stripe-webhook/ @IbrahimAyad
+/supabase/functions/create-checkout/ @IbrahimAyad
+
+# Customer Experience
+/src/components/ @IbrahimAyad
+/src/pages/ @IbrahimAyad
+/src/contexts/ @IbrahimAyad
+*.css @IbrahimAyad
+
+# Analytics
+/src/components/admin/analytics/ @IbrahimAyad
+/supabase/functions/analytics-dashboard/ @IbrahimAyad
+/supabase/functions/ai-recommendations/ @IbrahimAyad
+
+# Security
+/src/contexts/AuthContext.tsx @IbrahimAyad
+/.github/workflows/ @IbrahimAyad
+
+# Integration
+/supabase/functions/email-service/ @IbrahimAyad
+/supabase/functions/kct-webhook/ @IbrahimAyad

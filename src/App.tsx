@@ -1,0 +1,57 @@
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { CartProvider } from "@/contexts/CartContext";
+import AdminDashboard from "./pages/AdminDashboard";
+import NotFound from "./pages/NotFound";
+
+const queryClient = new QueryClient();
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <AuthProvider>
+        <CartProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<AdminDashboard />} />
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/analytics" element={<AdminDashboard />} />
+              <Route path="/admin/products" element={<AdminDashboard />} />
+              <Route path="/admin/collections" element={<AdminDashboard />} />
+              <Route path="/admin/orders" element={<AdminDashboard />} />
+              <Route path="/admin/stripe-orders" element={<AdminDashboard />} />
+              <Route path="/admin/customers" element={<AdminDashboard />} />
+              <Route path="/admin/inventory" element={<AdminDashboard />} />
+              <Route path="/admin/weddings" element={<AdminDashboard />} />
+              <Route path="/admin/events" element={<AdminDashboard />} />
+              <Route path="/admin/custom-orders" element={<AdminDashboard />} />
+              <Route path="/admin/reviews" element={<AdminDashboard />} />
+              <Route path="/admin/search" element={<AdminDashboard />} />
+              <Route path="/admin/search-analytics" element={<AdminDashboard />} />
+              <Route path="/admin/reports" element={<AdminDashboard />} />
+              <Route path="/admin/integrations" element={<AdminDashboard />} />
+              <Route path="/admin/settings" element={<AdminDashboard />} />
+              <Route path="/admin/email-analytics" element={<AdminDashboard />} />
+              <Route path="/admin/revenue-forecast" element={<AdminDashboard />} />
+              <Route path="/admin/ai-recommendations" element={<AdminDashboard />} />
+              <Route path="/admin/predictive-analytics" element={<AdminDashboard />} />
+              <Route path="/admin/customer-lifetime-value" element={<AdminDashboard />} />
+              <Route path="/admin/ab-testing" element={<AdminDashboard />} />
+              <Route path="/admin/inventory-forecasting" element={<AdminDashboard />} />
+              <Route path="/admin/automation" element={<AdminDashboard />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </CartProvider>
+      </AuthProvider>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
+
+export default App;

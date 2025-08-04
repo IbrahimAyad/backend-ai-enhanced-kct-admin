@@ -2,7 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.0";
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { validateEmail, sanitizeString } from '../_shared/validation.ts';
-import { checkRateLimit, sanitizeErrorMessage } from '../_shared/webhook-security.ts';
+import { createRateLimitedEndpoint, createUserTieredLimits } from '../_shared/rate-limit-middleware.ts';
+import { sanitizeErrorMessage } from '../_shared/webhook-security.ts';
 
 // Environment validation
 const SENDGRID_API_KEY = Deno.env.get('KCT-Email-Key') || Deno.env.get('SENDGRID_API_KEY');
@@ -15,6 +16,9 @@ if (!SENDGRID_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("Missing required environment variables");
   throw new Error("Server configuration error");
 }
+
+// Create rate limited endpoint handlers
+const rateLimitedEndpoints = createRateLimitedEndpoint(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // Constants for validation
 const MAX_SUBJECT_LENGTH = 200;
@@ -166,7 +170,10 @@ export async function sendEmailSecure(template: EmailTemplate, supabase: any): P
   }
 }
 
-serve(async (req) => {
+/**
+ * Main email service handler
+ */
+async function handleEmailService(req: Request): Promise<Response> {
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 
@@ -180,24 +187,6 @@ serve(async (req) => {
       status: 405,
       headers: corsHeaders
     });
-  }
-
-  // Rate limiting (stricter for email endpoints)
-  const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
-  const rateLimitResult = checkRateLimit(`email-service:${clientIp}`);
-  
-  if (!rateLimitResult.allowed) {
-    return new Response(
-      JSON.stringify({ error: "Rate limit exceeded" }), 
-      { 
-        status: 429,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-          "Retry-After": String(rateLimitResult.retryAfter || 60)
-        }
-      }
-    );
   }
 
   try {
@@ -309,4 +298,71 @@ serve(async (req) => {
       }
     );
   }
-});
+}
+
+// Create tiered rate limiting for email service:
+// - Admin users: 500 requests/minute
+// - Service role: email rate limits (10 requests/minute)
+// - Authenticated users: email rate limits (10 requests/minute)
+const tieredRateLimits = [
+  {
+    condition: (req: Request) => {
+      const authHeader = req.headers.get('authorization');
+      if (!authHeader) return false;
+      const token = authHeader.replace('Bearer ', '');
+      return token === SUPABASE_SERVICE_ROLE_KEY;
+    },
+    options: {
+      endpointType: 'email' as const,
+      identifierType: 'api_key' as const,
+      errorMessage: 'Email service rate limit exceeded.'
+    }
+  },
+  {
+    condition: (req: Request) => {
+      const authHeader = req.headers.get('authorization');
+      if (!authHeader) return false;
+      try {
+        const token = authHeader.replace('Bearer ', '');
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.role === 'admin' || payload.app_metadata?.role === 'admin';
+      } catch {
+        return false;
+      }
+    },
+    options: {
+      endpointType: 'admin' as const,
+      identifierType: 'user' as const,
+      errorMessage: 'Admin email rate limit exceeded.'
+    }
+  },
+  {
+    condition: (req: Request) => {
+      const authHeader = req.headers.get('authorization');
+      return !!(authHeader && authHeader.startsWith('Bearer '));
+    },
+    options: {
+      endpointType: 'email' as const,
+      identifierType: 'user' as const,
+      errorMessage: 'Email rate limit exceeded.'
+    }
+  },
+  {
+    condition: () => true, // Catch all for unauthenticated requests
+    options: {
+      config: {
+        maxRequests: 3,
+        windowMs: 60 * 1000 // 1 minute
+      },
+      endpointType: 'email' as const,
+      identifierType: 'ip' as const,
+      errorMessage: 'Email service requires authentication.'
+    }
+  }
+];
+
+// Apply tiered rate limiting to the handler
+const protectedHandler = rateLimitedEndpoints.tiered(handleEmailService, tieredRateLimits);
+
+// Serve the protected endpoint
+serve(protectedHandler);

@@ -2,17 +2,22 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { sanitizeString, sanitizeObject } from "../_shared/validation.ts";
-import { checkRateLimit, sanitizeErrorMessage } from "../_shared/webhook-security.ts";
+import { createRateLimitedEndpoint, createUserTieredLimits } from '../_shared/rate-limit-middleware.ts';
+import { sanitizeErrorMessage } from "../_shared/webhook-security.ts";
 
 // Environment validation
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("Missing Supabase configuration");
-  throw new Error("Server configuration error");
+  throw new Error("Server configuration");
 }
+
+// Create rate limited endpoint handlers
+const rateLimitedEndpoints = createRateLimitedEndpoint(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // Valid values for validation
 const VALID_RECOMMENDATION_TYPES = ['outfit', 'complete_look', 'upsell', 'cross_sell'];
@@ -39,7 +44,10 @@ interface RecommendationRequest {
   context: RecommendationContext;
 }
 
-serve(async (req) => {
+/**
+ * Main AI recommendations handler
+ */
+async function handleAIRecommendations(req: Request): Promise<Response> {
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 
@@ -53,24 +61,6 @@ serve(async (req) => {
       status: 405,
       headers: corsHeaders
     });
-  }
-
-  // Rate limiting (stricter for AI endpoints)
-  const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
-  const rateLimitResult = checkRateLimit(`ai-recommendations:${clientIp}`);
-  
-  if (!rateLimitResult.allowed) {
-    return new Response(
-      JSON.stringify({ error: "Rate limit exceeded" }), 
-      { 
-        status: 429,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-          "Retry-After": String(rateLimitResult.retryAfter || 60)
-        }
-      }
-    );
   }
 
   try {
@@ -362,7 +352,7 @@ serve(async (req) => {
       }
     );
   }
-});
+}
 
 function generateSafePrompt(
   type: string,
@@ -539,3 +529,57 @@ function calculateConfidenceScore(
 
   return Math.min(0.95, Math.max(0.1, score));
 }
+
+// Create tiered rate limiting for AI recommendations:
+// - Admin users: 500 requests/minute
+// - Authenticated users: 100 requests/minute (api default)
+// - Anonymous users: 20 requests/minute (stricter for AI)
+const tieredRateLimits = [
+  {
+    condition: (req: Request) => {
+      const authHeader = req.headers.get('authorization');
+      if (!authHeader) return false;
+      try {
+        const token = authHeader.replace('Bearer ', '');
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.role === 'admin' || payload.app_metadata?.role === 'admin';
+      } catch {
+        return false;
+      }
+    },
+    options: {
+      endpointType: 'admin' as const,
+      identifierType: 'user' as const,
+      errorMessage: 'Admin rate limit exceeded.'
+    }
+  },
+  {
+    condition: (req: Request) => {
+      const authHeader = req.headers.get('authorization');
+      return !!(authHeader && authHeader.startsWith('Bearer '));
+    },
+    options: {
+      endpointType: 'api' as const,
+      identifierType: 'user' as const,
+      errorMessage: 'AI recommendation rate limit exceeded.'
+    }
+  },
+  {
+    condition: () => true, // Catch all for anonymous users
+    options: {
+      config: {
+        maxRequests: 20,
+        windowMs: 60 * 1000 // 1 minute
+      },
+      endpointType: 'api' as const,
+      identifierType: 'ip' as const,
+      errorMessage: 'AI recommendation rate limit exceeded. Please sign in for higher limits.'
+    }
+  }
+];
+
+// Apply tiered rate limiting to the handler
+const protectedHandler = rateLimitedEndpoints.tiered(handleAIRecommendations, tieredRateLimits);
+
+// Serve the protected endpoint
+serve(protectedHandler);

@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.0";
+import { createRateLimitedEndpoint } from '../_shared/rate-limit-middleware.ts';
 import { 
   validateWebhookSignature,
-  checkRateLimit, 
   checkReplayProtection,
   validateWebhookPayload,
   sanitizeErrorMessage,
@@ -19,6 +19,9 @@ if (!KCT_WEBHOOK_SECRET || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error("Server configuration error");
 }
 
+// Create rate limited endpoint handlers
+const rateLimitedEndpoints = createRateLimitedEndpoint(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
 // Required fields for different webhook types
 const REQUIRED_FIELDS = {
   "order.created": ["order_id", "customer_email", "items", "total_amount"],
@@ -28,7 +31,10 @@ const REQUIRED_FIELDS = {
   "customer.created": ["customer_id", "email"],
 };
 
-serve(async (req: Request) => {
+/**
+ * Main KCT webhook handler
+ */
+async function handleKCTWebhook(req: Request): Promise<Response> {
   // Only accept POST requests
   if (req.method !== "POST") {
     return new Response("Method not allowed", { 
@@ -37,24 +43,7 @@ serve(async (req: Request) => {
     });
   }
 
-  // Get client IP for rate limiting
-  const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
-  
   try {
-    // Rate limiting check
-    const rateLimitResult = checkRateLimit(`kct-webhook:${clientIp}`);
-    if (!rateLimitResult.allowed) {
-      return new Response(
-        JSON.stringify({ error: "Rate limit exceeded" }), 
-        { 
-          status: 429,
-          headers: {
-            ...createSecureWebhookHeaders(),
-            "Retry-After": String(rateLimitResult.retryAfter || 60)
-          }
-        }
-      );
-    }
 
     // Get webhook headers
     const signature = req.headers.get("x-kct-signature");
@@ -216,7 +205,7 @@ serve(async (req: Request) => {
       }
     );
   }
-});
+}
 
 // Handler functions with validation and error handling
 
@@ -494,3 +483,9 @@ async function sendOrderConfirmationEmail(supabase: any, order: any, customer: a
     throw new Error("Failed to trigger order confirmation email");
   }
 }
+
+// Apply webhook rate limiting (1000 requests/minute)
+const protectedHandler = rateLimitedEndpoints.webhook(handleKCTWebhook);
+
+// Serve the protected endpoint
+serve(protectedHandler);

@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import Stripe from "https://esm.sh/stripe@14.21.0";
+import { createRateLimitedEndpoint } from '../_shared/rate-limit-middleware.ts';
 import { 
-  checkRateLimit, 
   checkReplayProtection, 
   sanitizeErrorMessage,
   createSecureWebhookHeaders 
@@ -19,7 +19,13 @@ if (!STRIPE_SECRET_KEY || !STRIPE_WEBHOOK_SECRET || !SUPABASE_URL || !SUPABASE_S
   throw new Error("Server configuration error");
 }
 
-serve(async (req) => {
+// Create rate limited endpoint handlers
+const rateLimitedEndpoints = createRateLimitedEndpoint(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+/**
+ * Main Stripe webhook handler
+ */
+async function handleStripeWebhook(req: Request): Promise<Response> {
   // Webhooks should only accept POST requests
   if (req.method !== "POST") {
     return new Response("Method not allowed", { 
@@ -28,24 +34,7 @@ serve(async (req) => {
     });
   }
 
-  // Get client IP for rate limiting
-  const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
-  
   try {
-    // Rate limiting check
-    const rateLimitResult = checkRateLimit(`stripe-webhook:${clientIp}`);
-    if (!rateLimitResult.allowed) {
-      return new Response(
-        JSON.stringify({ error: "Rate limit exceeded" }), 
-        { 
-          status: 429,
-          headers: {
-            ...createSecureWebhookHeaders(),
-            "Retry-After": String(rateLimitResult.retryAfter || 60)
-          }
-        }
-      );
-    }
 
     // Initialize Stripe with validated secret
     const stripe = new Stripe(STRIPE_SECRET_KEY, {
@@ -192,7 +181,7 @@ serve(async (req) => {
       }
     );
   }
-});
+}
 
 // Handler functions with improved error handling and validation
 
@@ -357,3 +346,9 @@ async function sendOrderConfirmationEmail(supabase: any, session: Stripe.Checkou
     throw new Error("Failed to trigger order confirmation email");
   }
 }
+
+// Apply webhook rate limiting (1000 requests/minute)
+const protectedHandler = rateLimitedEndpoints.webhook(handleStripeWebhook);
+
+// Serve the protected endpoint
+serve(protectedHandler);

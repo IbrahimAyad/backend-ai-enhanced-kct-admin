@@ -2,16 +2,21 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { sanitizeString, validateAmount } from "../_shared/validation.ts";
-import { checkRateLimit, sanitizeErrorMessage } from "../_shared/webhook-security.ts";
+import { createRateLimitedEndpoint, createUserTieredLimits } from '../_shared/rate-limit-middleware.ts';
+import { sanitizeErrorMessage } from "../_shared/webhook-security.ts";
 
 // Environment validation
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("Missing Supabase configuration");
   throw new Error("Server configuration error");
 }
+
+// Create rate limited endpoint handlers
+const rateLimitedEndpoints = createRateLimitedEndpoint(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // Valid values
 const VALID_BUNDLE_TYPES = ['complete_outfit', 'seasonal', 'wedding_party', 'business_bundle', 'custom'];
@@ -31,30 +36,15 @@ interface SuggestionsRequest {
   occasion?: string;
 }
 
-serve(async (req) => {
+/**
+ * Main bundle builder handler
+ */
+async function handleBundleBuilder(req: Request): Promise<Response> {
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
-  }
-
-  // Rate limiting
-  const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
-  const rateLimitResult = checkRateLimit(`bundle-builder:${clientIp}`);
-  
-  if (!rateLimitResult.allowed) {
-    return new Response(
-      JSON.stringify({ error: "Rate limit exceeded" }), 
-      { 
-        status: 429,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-          "Retry-After": String(rateLimitResult.retryAfter || 60)
-        }
-      }
-    );
   }
 
   try {
@@ -293,7 +283,7 @@ serve(async (req) => {
       }
     );
   }
-});
+}
 
 function isValidUUID(uuid: string): boolean {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -504,3 +494,15 @@ async function getComplementaryProducts(
     .sort((a: any, b: any) => b.complementarity_score - a.complementarity_score)
     .slice(0, 10);
 }
+
+// Create tiered rate limiting for bundle builder:
+// - Admin users: 500 requests/minute
+// - Authenticated users: 200 requests/minute (search default)
+// - Anonymous users: 100 requests/minute (api default)
+const tieredRateLimits = createUserTieredLimits('search');
+
+// Apply tiered rate limiting to the handler
+const protectedHandler = rateLimitedEndpoints.tiered(handleBundleBuilder, tieredRateLimits);
+
+// Serve the protected endpoint
+serve(protectedHandler);

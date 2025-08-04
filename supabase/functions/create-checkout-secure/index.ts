@@ -8,7 +8,8 @@ import {
   sanitizeString,
   sanitizeObject 
 } from "../_shared/validation.ts";
-import { checkRateLimit, sanitizeErrorMessage } from "../_shared/webhook-security.ts";
+import { createRateLimitedEndpoint, createUserTieredLimits } from '../_shared/rate-limit-middleware.ts';
+import { sanitizeErrorMessage } from "../_shared/webhook-security.ts";
 
 // Environment validation
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
@@ -19,6 +20,9 @@ if (!STRIPE_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("Missing required environment variables");
   throw new Error("Server configuration error");
 }
+
+// Create rate limited endpoint handlers
+const rateLimitedEndpoints = createRateLimitedEndpoint(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 interface CartItem {
   product_id?: string;
@@ -35,7 +39,10 @@ interface CheckoutRequest {
   customer_email?: string;
 }
 
-serve(async (req) => {
+/**
+ * Main checkout handler
+ */
+async function handleCreateCheckout(req: Request): Promise<Response> {
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 
@@ -49,23 +56,6 @@ serve(async (req) => {
       status: 405,
       headers: corsHeaders
     });
-  }
-
-  // Rate limiting
-  const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
-  const rateLimitResult = checkRateLimit(`create-checkout:${clientIp}`);
-  
-  if (!rateLimitResult.allowed) {
-    return new Response(
-      JSON.stringify({ error: "Rate limit exceeded" }), 
-      { 
-        status: 429,
-        headers: {
-          ...corsHeaders,
-          "Retry-After": String(rateLimitResult.retryAfter || 60)
-        }
-      }
-    );
   }
 
   try {
@@ -368,7 +358,7 @@ serve(async (req) => {
       status: statusCode,
     });
   }
-});
+}
 
 // Helper functions
 
@@ -418,3 +408,15 @@ async function validateAndReserveInventory(
     throw new Error("Failed to reserve inventory");
   }
 }
+
+// Create tiered rate limiting for checkout:
+// - Admin users: 500 requests/minute
+// - Authenticated users: 10 requests/minute (checkout default)
+// - Anonymous users: 10 requests/minute (checkout default)
+const tieredRateLimits = createUserTieredLimits('checkout');
+
+// Apply tiered rate limiting to the handler
+const protectedHandler = rateLimitedEndpoints.tiered(handleCreateCheckout, tieredRateLimits);
+
+// Serve the protected endpoint
+serve(protectedHandler);

@@ -2,7 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.0";
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { validateEmail, validateAmount, sanitizeString, validateAddress } from '../_shared/validation.ts';
-import { checkRateLimit, sanitizeErrorMessage } from '../_shared/webhook-security.ts';
+import { createRateLimitedEndpoint } from '../_shared/rate-limit-middleware.ts';
+import { sanitizeErrorMessage } from '../_shared/webhook-security.ts';
 
 // Environment validation
 const SENDGRID_API_KEY = Deno.env.get('KCT-Email-Key') || Deno.env.get('SENDGRID_API_KEY');
@@ -17,6 +18,9 @@ if (!SENDGRID_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("Missing required environment variables");
   throw new Error("Server configuration error");
 }
+
+// Create rate limited endpoint handlers
+const rateLimitedEndpoints = createRateLimitedEndpoint(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // Constants
 const MAX_ORDER_ITEMS = 100;

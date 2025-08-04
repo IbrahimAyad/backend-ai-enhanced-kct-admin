@@ -13,6 +13,8 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Login from "./pages/Login";
 import TestLogin from "./pages/TestLogin";
+import ProductTest from "./pages/ProductTest";
+import StorageTest from "./pages/StorageTest";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +56,8 @@ const App = () => (
               <Route path="/admin/inventory-forecasting" element={<AdminDashboard />} />
               <Route path="/admin/automation" element={<AdminDashboard />} />
               <Route path="/admin/test-auth" element={<AdminAuthTest />} />
+              <Route path="/product-test" element={<ProductTest />} />
+              <Route path="/storage-test" element={<StorageTest />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />

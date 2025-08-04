@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Environment Variables</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .env-check { background: #f0f0f0; padding: 20px; margin: 20px 0; border-radius: 8px; }
+        .error { background: #ffe6e6; color: #d63384; }
+        .success { background: #e6ffe6; color: #198754; }
+        .warning { background: #fff3cd; color: #664d03; }
+        pre { background: white; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Debug Environment Variables on Deployed Site</h1>
+    
+    <div id="env-check" class="env-check">
+        <h3>Checking environment variables...</h3>
+    </div>
+
+    <div id="test-results"></div>
+
+    <button onclick="testDirectConnection()">Test Direct Supabase Connection</button>
+    <button onclick="window.location.reload()">Refresh</button>
+
+    <script type="module">
+        function checkEnvironment() {
+            const envDiv = document.getElementById('env-check');
+            
+            try {
+                // This should work in Vite/React apps
+                const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL;
+                const supabaseKey = import.meta.env?.VITE_SUPABASE_ANON_KEY;
+                
+                let html = '<h3>Environment Check Results:</h3>';
+                
+                if (supabaseUrl) {
+                    html += `<p>✅ VITE_SUPABASE_URL: ${supabaseUrl}</p>`;
+                } else {
+                    html += `<p>❌ VITE_SUPABASE_URL: NOT FOUND</p>`;
+                }
+                
+                if (supabaseKey) {
+                    html += `<p>✅ VITE_SUPABASE_ANON_KEY: ${supabaseKey.substring(0, 20)}...</p>`;
+                } else {
+                    html += `<p>❌ VITE_SUPABASE_ANON_KEY: NOT FOUND</p>`;
+                }
+                
+                if (supabaseUrl && supabaseKey) {
+                    envDiv.className = 'env-check success';
+                } else {
+                    envDiv.className = 'env-check error';
+                }
+                
+                envDiv.innerHTML = html;
+                
+            } catch (error) {
+                envDiv.className = 'env-check error';
+                envDiv.innerHTML = `<h3>Environment Check Failed:</h3><p>${error.message}</p>`;
+            }
+        }
+
+        window.testDirectConnection = async function() {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = '<div class="env-check">Testing connection...</div>';
+
+            // Use the exact values we know work
+            const CORRECT_URL = 'https://gvcswimqaxvylgxbklbz.supabase.co';
+            const CORRECT_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2Y3N3aW1xYXh2eWxneGJrbGJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTk4NzE3NDUsImV4cCI6MjAzNTQ0Nzc0NX0.0e0Qi_ZbOgxTFIiEpBvhHnG7m0RcSfLfh8sq75C-5jI';
+
+            try {
+                console.log('Testing with URL:', CORRECT_URL);
+                console.log('Testing with key:', CORRECT_KEY.substring(0, 20) + '...');
+
+                const response = await fetch(`${CORRECT_URL}/rest/v1/products?limit=1`, {
+                    method: 'GET',
+                    headers: {
+                        'apikey': CORRECT_KEY,
+                        'Authorization': `Bearer ${CORRECT_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const responseText = await response.text();
+                console.log('Response status:', response.status);
+                console.log('Response text:', responseText);
+
+                if (response.ok) {
+                    resultsDiv.innerHTML = `
+                        <div class="env-check success">
+                            <h3>✅ Direct Connection SUCCESS!</h3>
+                            <p>Status: ${response.status}</p>
+                            <p>The issue is that your deployed app is NOT using these correct values.</p>
+                            <pre>${responseText}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="env-check error">
+                            <h3>❌ Direct Connection FAILED</h3>
+                            <p>Status: ${response.status}</p>
+                            <pre>${responseText}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Connection error:', error);
+                resultsDiv.innerHTML = `
+                    <div class="env-check error">
+                        <h3>❌ Connection Error</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        };
+
+        // Check environment on load
+        checkEnvironment();
+    </script>
+</body>
+</html>

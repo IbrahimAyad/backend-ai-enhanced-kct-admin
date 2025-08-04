@@ -51,3 +51,4 @@ supabase/.temp
 .cache
 .parcel-cache
 .turbo
+.vercel

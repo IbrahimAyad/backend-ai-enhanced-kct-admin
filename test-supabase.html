@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Supabase Connection</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Test Supabase Connection</h1>
+    <button onclick="testConnection()">Test Connection</button>
+    <button onclick="testLogin()">Test Login</button>
+    <div id="result"></div>
+
+    <script>
+        const SUPABASE_URL = 'https://gvcswimqaxvylgxbklbz.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2Y3N3aW1xYXh2eWxneGJrbGJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTk4NzE3NDUsImV4cCI6MjAzNTQ0Nzc0NX0.0e0Qi_ZbOgxTFIiEpBvhHnG7m0RcSfLfh8sq75C-5jI';
+        
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        async function testConnection() {
+            const resultDiv = document.getElementById('result');
+            try {
+                const { data, error } = await supabaseClient.from('products').select('count').limit(1);
+                if (error) {
+                    resultDiv.innerHTML = `<p style="color: red;">Error: ${JSON.stringify(error)}</p>`;
+                } else {
+                    resultDiv.innerHTML = `<p style="color: green;">Connection successful!</p>`;
+                }
+            } catch (e) {
+                resultDiv.innerHTML = `<p style="color: red;">Exception: ${e.message}</p>`;
+            }
+        }
+
+        async function testLogin() {
+            const resultDiv = document.getElementById('result');
+            try {
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email: 'support@kctmenswear.com',
+                    password: '127598'
+                });
+                if (error) {
+                    resultDiv.innerHTML = `<p style="color: red;">Login Error: ${JSON.stringify(error)}</p>`;
+                } else {
+                    resultDiv.innerHTML = `<p style="color: green;">Login successful! User: ${data.user.email}</p>`;
+                }
+            } catch (e) {
+                resultDiv.innerHTML = `<p style="color: red;">Exception: ${e.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

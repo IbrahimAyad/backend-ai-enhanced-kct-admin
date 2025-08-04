@@ -12,6 +12,7 @@ import VerifyEmail from "./pages/VerifyEmail";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Login from "./pages/Login";
+import TestLogin from "./pages/TestLogin";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<AdminDashboard />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/test" element={<TestLogin />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/analytics" element={<AdminDashboard />} />
               <Route path="/admin/products" element={<AdminDashboard />} />

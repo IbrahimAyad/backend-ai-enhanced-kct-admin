@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Verify Deployment Environment</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .env-var {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Vercel Deployment Environment Verification</h1>
+        
+        <div class="status info">
+            <h3>Instructions:</h3>
+            <ol>
+                <li>Deploy this HTML file to your Vercel project</li>
+                <li>Visit the deployed URL to see what environment variables are actually being used</li>
+                <li>Compare with the expected values below</li>
+            </ol>
+        </div>
+
+        <h2>Expected Values (Correct):</h2>
+        <pre>
+VITE_SUPABASE_URL=https://gvcswimqaxvylgxbklbz.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2Y3N3aW1xYXh2eWxneGJrbGJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTk4NzE3NDUsImV4cCI6MjAzNTQ0Nzc0NX0.0e0Qi_ZbOgxTFIiEpBvhHnG7m0RcSfLfh8sq75C-5jI
+        </pre>
+
+        <h2>Current Deployment Values:</h2>
+        <div id="current-values"></div>
+
+        <h2>Test Connection:</h2>
+        <button onclick="testSupabase()">Test Supabase Connection</button>
+        <div id="test-result"></div>
+
+        <h2>How to Fix in Vercel:</h2>
+        <div class="status info">
+            <ol>
+                <li>Go to <a href="https://vercel.com/dashboard" target="_blank">Vercel Dashboard</a></li>
+                <li>Select your project: <strong>backend-ai-enhanced-kct-admin</strong></li>
+                <li>Go to Settings → Environment Variables</li>
+                <li>Update or add these variables:
+                    <ul>
+                        <li><span class="env-var">VITE_SUPABASE_URL</span> = <code>https://gvcswimqaxvylgxbklbz.supabase.co</code></li>
+                        <li><span class="env-var">VITE_SUPABASE_ANON_KEY</span> = <code>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2Y3N3aW1xYXh2eWxneGJrbGJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTk4NzE3NDUsImV4cCI6MjAzNTQ0Nzc0NX0.0e0Qi_ZbOgxTFIiEpBvhHnG7m0RcSfLfh8sq75C-5jI</code></li>
+                    </ul>
+                </li>
+                <li>Click "Save"</li>
+                <li>Trigger a new deployment (push a commit or click "Redeploy")</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // Show current environment values
+        function showCurrentValues() {
+            const currentDiv = document.getElementById('current-values');
+            
+            // Check if we're in a Vite environment
+            if (typeof import !== 'undefined' && import.meta && import.meta.env) {
+                currentDiv.innerHTML = `
+                    <div class="status info">
+                        <p><strong>VITE_SUPABASE_URL:</strong> ${import.meta.env.VITE_SUPABASE_URL || 'NOT SET'}</p>
+                        <p><strong>VITE_SUPABASE_ANON_KEY:</strong> ${import.meta.env.VITE_SUPABASE_ANON_KEY || 'NOT SET'}</p>
+                    </div>
+                `;
+            } else {
+                // For static HTML, we'll check via test connection
+                currentDiv.innerHTML = `
+                    <div class="status info">
+                        <p>Environment variables cannot be directly accessed in static HTML.</p>
+                        <p>Use the "Test Supabase Connection" button to verify the deployment.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Test Supabase connection with correct credentials
+        async function testSupabase() {
+            const resultDiv = document.getElementById('test-result');
+            resultDiv.innerHTML = '<div class="status info">Testing connection...</div>';
+
+            const CORRECT_URL = 'https://gvcswimqaxvylgxbklbz.supabase.co';
+            const CORRECT_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2Y3N3aW1xYXh2eWxneGJrbGJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTk4NzE3NDUsImV4cCI6MjAzNTQ0Nzc0NX0.0e0Qi_ZbOgxTFIiEpBvhHnG7m0RcSfLfh8sq75C-5jI';
+
+            try {
+                // Test with correct credentials
+                const response = await fetch(`${CORRECT_URL}/rest/v1/products?limit=1`, {
+                    headers: {
+                        'apikey': CORRECT_KEY,
+                        'Authorization': `Bearer ${CORRECT_KEY}`
+                    }
+                });
+
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="status success">
+                            <h4>✅ Connection Successful!</h4>
+                            <p>The correct credentials work. Your Vercel deployment needs to be updated with these values.</p>
+                        </div>
+                    `;
+                } else {
+                    const error = await response.text();
+                    resultDiv.innerHTML = `
+                        <div class="status error">
+                            <h4>❌ Connection Failed</h4>
+                            <p>Status: ${response.status}</p>
+                            <p>Error: ${error}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="status error">
+                        <h4>❌ Connection Error</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize on load
+        showCurrentValues();
+    </script>
+</body>
+</html>

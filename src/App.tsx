@@ -7,6 +7,10 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
+import { AdminAuthTest } from "./pages/AdminAuthTest";
+import VerifyEmail from "./pages/VerifyEmail";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +49,10 @@ const App = () => (
               <Route path="/admin/ab-testing" element={<AdminDashboard />} />
               <Route path="/admin/inventory-forecasting" element={<AdminDashboard />} />
               <Route path="/admin/automation" element={<AdminDashboard />} />
+              <Route path="/admin/test-auth" element={<AdminAuthTest />} />
+              <Route path="/verify-email" element={<VerifyEmail />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

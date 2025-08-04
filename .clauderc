@@ -1,0 +1,11 @@
+{
+  "agents": {
+    "database": "code-agents/01-Database & Infrastructure Agent.md",
+    "business": "code-agents/02-Business Operations Agent.md",
+    "customer": "code-agents/03-Customer Experience Agent.md",
+    "analytics": "code-agents/04-Analytics & Intelligence Agent.md",
+    "security": "code-agents/05-Security & Quality Agent.md",
+    "integration": "code-agents/06-Integration & Automation Agent.md",
+    "master": "code-agents/Master Orchestrator.md"
+  }
+}

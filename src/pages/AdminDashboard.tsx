@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from 'react-router-dom';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,7 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { GlobalSearch } from '@/components/admin/GlobalSearch';
 import { UserMenu } from '@/components/auth/UserMenu';
+import { EmailVerificationBanner } from '@/components/auth/EmailVerificationBanner';
 import { EnhancedDashboardWidgets } from '@/components/admin/EnhancedDashboardWidgets';
 import { QuickActionWidgets } from '@/components/admin/QuickActionWidgets';
 import { ExportManager } from '@/components/admin/ExportManager';
@@ -63,6 +65,7 @@ import AdminOrderManagement from './AdminOrderManagement';
 
 const AdminDashboard = () => {
   const { user, profile } = useAuth();
+  const { isAdmin, adminUser, loading: adminLoading } = useAdminAuth();
   const { toast } = useToast();
   const location = useLocation();
   const [dashboardStats, setDashboardStats] = useState({
@@ -73,9 +76,6 @@ const AdminDashboard = () => {
     topProducts: [],
     recentActivity: []
   });
-
-  // This is now a dedicated admin system - no access restrictions needed
-  const isAdmin = true;
 
   // Get current page info based on route
   const getPageInfo = () => {
@@ -441,6 +441,31 @@ const AdminDashboard = () => {
     }
   ];
 
+  // Show loading state while checking admin status
+  if (adminLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Verifying admin access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect if not admin
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <h1 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h1>
+        <p className="text-gray-600">You don't have permission to access the admin dashboard.</p>
+        <Button onClick={() => window.location.href = '/'} className="mt-4">
+          Return to Home
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
@@ -491,6 +516,7 @@ const AdminDashboard = () => {
 
           {/* Main Content */}
           <div className="p-6 space-y-8">
+            <EmailVerificationBanner />
             {renderContent()}
           </div>
         </main>

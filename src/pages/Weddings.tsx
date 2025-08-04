@@ -10,6 +10,7 @@ import { UserMenu } from '@/components/auth/UserMenu';
 import { CartSheet } from '@/components/cart/CartSheet';
 import { WishlistSheet } from '@/components/wishlist/WishlistSheet';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { KCTMenswearAPI, type Wedding } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { Calendar, Users, MapPin, Plus, Crown, Heart, Shield, BarChart, CheckCircle, ShoppingBag } from 'lucide-react';
@@ -17,6 +18,7 @@ import { format } from 'date-fns';
 
 const WeddingsPage = () => {
   const { user, loading: authLoading, session } = useAuth();
+  const { isAdmin } = useAdminAuth();
   const { toast } = useToast();
   const [weddings, setWeddings] = useState<Wedding[]>([]);
   const [allWeddings, setAllWeddings] = useState<Wedding[]>([]);
@@ -25,12 +27,6 @@ const WeddingsPage = () => {
   const [joinCode, setJoinCode] = useState('');
   const [joinLoading, setJoinLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('user');
-
-  // Simple admin check - in production, this should be more robust
-  const isAdmin = user?.email === 'admin@kctmenswear.com' || 
-                  user?.email?.includes('admin') || 
-                  user?.email === 'test@example.com' ||
-                  user?.email === 'kctmenswear@gmail.com'; // Add your email as admin
 
   console.log('Wedding page - User:', JSON.stringify({
     user: user?.email, 

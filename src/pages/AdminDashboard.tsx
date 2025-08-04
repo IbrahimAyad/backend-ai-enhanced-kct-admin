@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { useDashboardData } from '@/hooks/useDashboardData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -69,14 +70,14 @@ const AdminDashboard = () => {
   const { toast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
-  const [dashboardStats, setDashboardStats] = useState({
-    totalOrders: 0,
-    totalRevenue: 0,
-    totalCustomers: 0,
-    avgOrderValue: 0,
-    topProducts: [],
-    recentActivity: []
-  });
+  
+  // Use the new dashboard data hook
+  const { 
+    loading: dataLoading, 
+    stats: dashboardStats, 
+    recentOrders, 
+    lowStockProducts 
+  } = useDashboardData();
 
   // Get current page info based on route
   const getPageInfo = () => {
@@ -291,30 +292,29 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {[
-                  { order: "#ORD-001", customer: "John Smith", amount: "$1,299", status: "Processing", source: "Web" },
-                  { order: "#ORD-002", customer: "Mike Johnson", amount: "$899", status: "Shipped", source: "Wedding" },
-                  { order: "#ORD-003", customer: "David Wilson", amount: "$2,499", status: "Delivered", source: "Phone" },
-                  { order: "#ORD-004", customer: "Robert Brown", amount: "$1,899", status: "Processing", source: "Web" },
-                ].map((order, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                    <div className="space-y-1">
-                      <p className="font-medium">{order.order}</p>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm text-muted-foreground">{order.customer}</p>
-                        <Badge variant="outline" className="text-xs">
-                          {order.source}
+                {recentOrders.length > 0 ? (
+                  recentOrders.map((order) => (
+                    <div key={order.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="space-y-1">
+                        <p className="font-medium">{order.order_number || `#${order.id.slice(0, 8)}`}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm text-muted-foreground">{order.customer_name || order.customer_email}</p>
+                          <Badge variant="outline" className="text-xs">
+                            {order.payment_status}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="text-right space-y-1">
+                        <p className="font-semibold">${(order.total_amount || 0).toFixed(2)}</p>
+                        <Badge variant={order.status === 'delivered' ? 'default' : 'secondary'} className="text-xs">
+                          {order.status || 'pending'}
                         </Badge>
                       </div>
                     </div>
-                    <div className="text-right space-y-1">
-                      <p className="font-semibold">{order.amount}</p>
-                      <Badge variant={order.status === 'Delivered' ? 'default' : 'secondary'} className="text-xs">
-                        {order.status}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-muted-foreground text-center py-4">No recent orders</p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -328,34 +328,49 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {[
-                  { product: "Navy 3-Piece Suit", stock: 3, status: "Low Stock", supplier: "Italian Imports" },
-                  { product: "White Dress Shirt", stock: 0, status: "Out of Stock", supplier: "Premium Cotton Co" },
-                  { product: "Silk Paisley Tie", stock: 5, status: "Low Stock", supplier: "Luxury Accessories" },
-                  { product: "Brown Leather Shoes", stock: 2, status: "Critical", supplier: "European Leather" },
-                ].map((item, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="space-y-1">
-                      <p className="font-medium">{item.product}</p>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>{item.stock} units remaining</span>
-                        <span>•</span>
-                        <span>{item.supplier}</span>
+                {lowStockProducts.length > 0 ? (
+                  lowStockProducts.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="space-y-1">
+                        <p className="font-medium">{item.product_name}</p>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span>{item.available_quantity} units available</span>
+                          {item.reserved_quantity > 0 && (
+                            <>
+                              <span>•</span>
+                              <span>{item.reserved_quantity} reserved</span>
+                            </>
+                          )}
+                          {item.sku && (
+                            <>
+                              <span>•</span>
+                              <span>SKU: {item.sku}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right space-y-1">
+                        <Badge 
+                          variant={
+                            item.available_quantity === 0 ? 'destructive' : 
+                            item.available_quantity < 5 ? 'destructive' : 
+                            'outline'
+                          }
+                          className="text-xs"
+                        >
+                          {item.available_quantity === 0 ? 'Out of Stock' : 
+                           item.available_quantity < 5 ? 'Critical' : 
+                           'Low Stock'}
+                        </Badge>
+                        <Button size="sm" variant="outline" className="text-xs h-6">
+                          Restock
+                        </Button>
                       </div>
                     </div>
-                    <div className="text-right space-y-1">
-                      <Badge 
-                        variant={item.status === 'Out of Stock' ? 'destructive' : item.status === 'Critical' ? 'destructive' : 'outline'}
-                        className="text-xs"
-                      >
-                        {item.status}
-                      </Badge>
-                      <Button size="sm" variant="outline" className="text-xs h-6">
-                        Restock
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-muted-foreground text-center py-4">All products are well stocked</p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -370,52 +385,7 @@ const AdminDashboard = () => {
       navigate('/login');
       return;
     }
-    
-    if (user && isAdmin) {
-      loadDashboardStats();
-    }
-  }, [user, isAdmin, adminLoading, navigate]);
-
-  const loadDashboardStats = async () => {
-    try {
-      // Import supabase here to avoid dependency issues
-      const { supabase } = await import('@/lib/supabase');
-      
-      // Use the new dashboard stats function instead of admin API to avoid 403 errors
-      const { data: stats, error: statsError } = await supabase.rpc('get_dashboard_stats');
-      
-      if (statsError) {
-        console.error('Error loading dashboard stats:', statsError);
-        throw statsError;
-      }
-
-      setDashboardStats({
-        totalOrders: stats?.totalOrders || 0,
-        totalRevenue: stats?.totalRevenue || 0,
-        totalCustomers: stats?.totalCustomers || 0,
-        avgOrderValue: stats?.avgOrderValue || 0,
-        topProducts: [],
-        recentActivity: []
-      });
-
-    } catch (error) {
-      console.error('⚠️ Dashboard stats loading error:', error);
-      // Set default values instead of crashing
-      setDashboardStats({
-        totalOrders: 0,
-        totalRevenue: 0,
-        totalCustomers: 0,
-        avgOrderValue: 0,
-        topProducts: [],
-        recentActivity: []
-      });
-      
-      toast({
-        title: "Dashboard Loading",
-        description: "Using demo data while database is being set up",
-      });
-    }
-  };
+  }, [user, adminLoading, navigate]);
 
   // Remove access control - this is now a dedicated admin system
 
@@ -450,14 +420,13 @@ const AdminDashboard = () => {
     }
   ];
 
-  // Show loading state while checking admin status
-  // Show loading while checking authentication
-  if (adminLoading || (!user && !adminLoading)) {
+  // Show loading state while checking admin status or loading data
+  if (adminLoading || (!user && !adminLoading) || dataLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground">Loading dashboard...</p>
         </div>
       </div>
     );

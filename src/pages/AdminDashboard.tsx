@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -68,6 +68,7 @@ const AdminDashboard = () => {
   const { isAdmin, adminUser, loading: adminLoading } = useAdminAuth();
   const { toast } = useToast();
   const location = useLocation();
+  const navigate = useNavigate();
   const [dashboardStats, setDashboardStats] = useState({
     totalOrders: 0,
     totalRevenue: 0,
@@ -363,9 +364,17 @@ const AdminDashboard = () => {
     </Tabs>
   );
 
+  // Redirect to login if not authenticated
   useEffect(() => {
-    loadDashboardStats();
-  }, []);
+    if (!adminLoading && !user) {
+      navigate('/login');
+      return;
+    }
+    
+    if (user && isAdmin) {
+      loadDashboardStats();
+    }
+  }, [user, isAdmin, adminLoading, navigate]);
 
   const loadDashboardStats = async () => {
     try {
@@ -442,12 +451,13 @@ const AdminDashboard = () => {
   ];
 
   // Show loading state while checking admin status
-  if (adminLoading) {
+  // Show loading while checking authentication
+  if (adminLoading || (!user && !adminLoading)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Verifying admin access...</p>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     );

@@ -15,8 +15,12 @@ import Login from "./pages/Login";
 import TestLogin from "./pages/TestLogin";
 import ProductTest from "./pages/ProductTest";
 import StorageTest from "./pages/StorageTest";
+import { autoDebugIfNeeded } from "@/utils/deploymentDebug";
 
 const queryClient = new QueryClient();
+
+// Auto-run deployment diagnostics if needed
+autoDebugIfNeeded();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

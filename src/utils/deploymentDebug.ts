@@ -352,16 +352,16 @@ class DeploymentDebugger {
 
 // Main debug function
 export async function debugDeployment(): Promise<void> {
-  const debugger = new DeploymentDebugger();
+  const deploymentDebugger = new DeploymentDebugger();
   
   console.log('🔍 Starting deployment diagnostics...');
   
-  await debugger.runSupabaseTests();
-  debugger.printDebugReport();
+  await deploymentDebugger.runSupabaseTests();
+  deploymentDebugger.printDebugReport();
   
   // Also log the raw data for copying
   console.log('📋 Raw debug data (copy for support):');
-  console.log(await debugger.exportDebugReport());
+  console.log(await deploymentDebugger.exportDebugReport());
 }
 
 // Auto-run in development or when explicitly enabled

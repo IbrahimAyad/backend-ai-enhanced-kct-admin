@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/contexts/CartContext';
 import { CartItemDB } from '@/lib/supabase';
 import { Minus, Plus, X } from 'lucide-react';
-import { getProductImageUrl } from '@/lib/productImages';
+import { getProductImageUrl } from '@/lib/shared/supabase-products';
 
 interface CartItemCardProps {
   item: CartItemDB;
@@ -32,10 +32,10 @@ export function CartItemCard({ item }: CartItemCardProps) {
   };
 
   const getProductImage = () => {
-    if (item.product?.images && item.product.images.length > 0) {
-      return getProductImageUrl(item.product.images[0]);
+    if (item.product) {
+      return getProductImageUrl(item.product);
     }
-    return getProductImageUrl();
+    return '/placeholder.svg';
   };
 
   const getVariantAttributes = () => {

@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
+import { fetchProductsWithImages } from '@/lib/shared/supabase-products';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -82,10 +83,8 @@ export const EnhancedDashboardWidgets = () => {
       const { data: dashboardStats } = await supabase.rpc('get_dashboard_stats');
       
       // Get products for top selling analysis
-      const { data: products } = await supabase
-        .from('products')
-        .select('*')
-        .limit(5);
+      const productsResult = await fetchProductsWithImages({ limit: 5 });
+      const products = productsResult.success ? productsResult.data : [];
 
       // Get recent orders for analysis
       const { data: orders } = await supabase

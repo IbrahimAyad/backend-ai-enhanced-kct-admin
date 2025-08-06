@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
+import { fetchProductsWithImages } from '@/lib/shared/supabase-products';
 
 interface ProductAnalytics {
   product_id: string;
@@ -70,15 +71,14 @@ export function ProductAnalytics() {
       }
 
       // Get products with their analytics
-      const { data: products } = await supabase
-        .from('products')
-        .select('id, name, category, primary_image')
-        .eq('status', 'active');
-
-      if (!products) {
+      const productsResult = await fetchProductsWithImages({ status: 'active' });
+      
+      if (!productsResult.success || !productsResult.data) {
         setAnalytics([]);
         return;
       }
+
+      const products = productsResult.data;
 
       // Get order items to calculate analytics
       const { data: orderItems } = await supabase

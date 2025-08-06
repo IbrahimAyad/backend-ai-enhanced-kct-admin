@@ -15,6 +15,8 @@ import Login from "./pages/Login";
 import TestLogin from "./pages/TestLogin";
 import ProductTest from "./pages/ProductTest";
 import StorageTest from "./pages/StorageTest";
+import SupabaseConnectionTest from "./pages/SupabaseConnectionTest";
+import TestProductImages from "./pages/TestProductImages";
 import { autoDebugIfNeeded } from "@/utils/deploymentDebug";
 
 const queryClient = new QueryClient();
@@ -62,6 +64,8 @@ const App = () => (
               <Route path="/admin/test-auth" element={<AdminAuthTest />} />
               <Route path="/product-test" element={<ProductTest />} />
               <Route path="/storage-test" element={<StorageTest />} />
+              <Route path="/supabase-test" element={<SupabaseConnectionTest />} />
+              <Route path="/test-images" element={<TestProductImages />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />

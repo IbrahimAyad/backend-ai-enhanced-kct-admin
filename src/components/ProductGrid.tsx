@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { KCTMenswearAPI, type Product } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { WishlistButton } from '@/components/wishlist/WishlistButton';
-import { getProductImageUrl } from '@/lib/productImages';
+import { getProductImageUrl } from '@/lib/shared/supabase-products';
 
 interface ProductGridProps {
   category?: string;
@@ -149,26 +149,16 @@ function ProductCard({ product, onAddToCart }: ProductCardProps) {
     <Card className="group hover:shadow-lg transition-shadow">
       <CardContent className="p-0">
         <div className="aspect-square bg-muted rounded-t-lg overflow-hidden relative">
-          {product.primary_image ? (
-            <img
-              src={getProductImageUrl(product.primary_image)}
-              alt={product.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              onError={(e) => {
-                // Fallback to default image if placeholder also fails
-                const target = e.target as HTMLImageElement;
-                if (target.src !== getProductImageUrl()) {
-                  target.src = getProductImageUrl();
-                }
-              }}
-            />
-          ) : (
-            <img
-              src={getProductImageUrl()}
-              alt={product.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-          )}
+          <img
+            src={getProductImageUrl(product)}
+            alt={product.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={(e) => {
+              // Fallback to placeholder if image fails to load
+              const target = e.target as HTMLImageElement;
+              target.src = '/placeholder.svg';
+            }}
+          />
           
           {/* Wishlist button in top-right corner */}
           <div className="absolute top-2 right-2">

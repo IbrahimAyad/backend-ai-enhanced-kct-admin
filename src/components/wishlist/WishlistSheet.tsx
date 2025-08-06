@@ -15,7 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { KCTMenswearAPI, type WishlistItem } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/contexts/CartContext';
-import { getProductImageUrl } from '@/lib/productImages';
+import { getProductImageUrl } from '@/lib/shared/supabase-products';
 
 interface WishlistSheetProps {
   children: React.ReactNode;
@@ -175,9 +175,9 @@ export function WishlistSheet({ children }: WishlistSheetProps) {
                   <div key={item.id}>
                     <div className="flex gap-4">
                       <div className="w-16 h-16 rounded-md overflow-hidden bg-muted">
-                        {item.product?.images?.[0] && (
+                        {item.product && (
                           <img 
-                            src={getProductImageUrl(item.product.images[0])}
+                            src={getProductImageUrl(item.product)}
                             alt={item.product?.name || 'Product'}
                             className="w-full h-full object-cover"
                           />

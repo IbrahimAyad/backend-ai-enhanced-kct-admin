@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sparkles, Star, TrendingUp, Heart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getProductImageUrl } from '@/lib/productImages';
+import { getProductImageUrl } from '@/lib/shared/supabase-products';
 
 interface RecommendationEngineProps {
   onRecommendationSelected?: (products: any[]) => void;
@@ -224,7 +224,7 @@ export const RecommendationEngine: React.FC<RecommendationEngineProps> = ({
                   <div className="aspect-square bg-gray-100 relative">
                     {item.images && item.images[0] && (
                       <img 
-                        src={getProductImageUrl(item.images[0])}
+                        src={getProductImageUrl(item)}
                         alt={item.name}
                         className="w-full h-full object-cover"
                       />

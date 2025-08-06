@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Package, Plus, Minus, Percent, DollarSign, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getProductImageUrl } from '@/lib/productImages';
+import { getProductImageUrl } from '@/lib/shared/supabase-products';
 
 interface BundleBuilderProps {
   initialProducts?: any[];
@@ -268,7 +268,7 @@ export const BundleBuilder: React.FC<BundleBuilderProps> = ({
                   <div className="aspect-square bg-gray-100 relative">
                     {product.images && product.images[0] && (
                       <img 
-                        src={getProductImageUrl(product.images[0])}
+                        src={getProductImageUrl(product)}
                         alt={product.name}
                         className="w-full h-full object-cover"
                       />

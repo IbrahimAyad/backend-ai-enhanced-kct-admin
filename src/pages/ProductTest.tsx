@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { RefreshCw, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { fetchProductsWithImages } from '@/lib/shared/supabase-products';
 
 export default function ProductTest() {
   const [loading, setLoading] = useState(false);
@@ -54,23 +55,14 @@ export default function ProductTest() {
 
       setSchemaStatus(status);
 
-      // Load products
-      const { data: productsData, error: productsError } = await supabase
-        .from('products')
-        .select(`
-          *,
-          product_variants (
-            id,
-            sku,
-            price,
-            stock_quantity,
-            attributes
-          )
-        `)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (productsError) throw productsError;
+      // Load products using shared service
+      const productsResult = await fetchProductsWithImages({ limit: 10 });
+      
+      if (!productsResult.success) {
+        throw new Error(productsResult.error || 'Failed to fetch products');
+      }
+      
+      const productsData = productsResult.data;
       setProducts(productsData || []);
 
       toast({

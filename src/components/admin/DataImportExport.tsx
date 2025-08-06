@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
+import { fetchProductsWithImages, supabase as sharedSupabase } from '@/lib/shared/supabase-products';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -185,12 +186,12 @@ export function DataImportExport() {
   const exportProducts = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('sku, name, description, category, base_price, status, stripe_product_id, created_at')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      // Use shared service to fetch all products
+      const result = await fetchProductsWithImages({ limit: 1000 });
+      
+      if (!result.success) throw new Error(result.error || 'Failed to fetch products');
+      
+      const data = result.data;
 
       // Convert to CSV
       const headers = ['sku', 'name', 'description', 'category', 'base_price', 'status', 'stripe_product_id', 'created_at'];

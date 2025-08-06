@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { KCTMenswearAPI, Product } from '@/lib/supabase';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { fetchProductsWithImages, getProductImageUrl, supabase as sharedSupabase } from '@/lib/shared/supabase-products';
 
 interface ProductFormData {
   // Basic Info
@@ -175,12 +176,11 @@ export const ProductManagement = () => {
       setLoading(true);
       console.log('🔍 Loading products...');
       
-      // Check if products table exists first
-      const { supabase } = await import('@/lib/supabase');
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .limit(10);
+      // Use shared service for fetching products
+      const result = await fetchProductsWithImages({ limit: 10 });
+      const { data, error } = result.success 
+        ? { data: result.data, error: null } 
+        : { data: null, error: new Error(result.error || 'Failed to fetch products') };
 
       console.log('📊 Products query result:', { data, error });
 
@@ -264,36 +264,36 @@ export const ProductManagement = () => {
 
     try {
       // Implement bulk actions
-      const { supabase } = await import('@/lib/supabase');
+      // Use shared supabase instance
       
       switch (action) {
         case 'activate':
-          await supabase
+          await sharedSupabase
             .from('products')
             .update({ status: 'active' })
             .in('id', selectedProducts);
           break;
         case 'deactivate':
-          await supabase
+          await sharedSupabase
             .from('products')
             .update({ status: 'inactive' })
             .in('id', selectedProducts);
           break;
         case 'feature':
-          await supabase
+          await sharedSupabase
             .from('products')
             .update({ is_bundleable: true })
             .in('id', selectedProducts);
           break;
         case 'unfeature':
-          await supabase
+          await sharedSupabase
             .from('products')
             .update({ is_bundleable: false })
             .in('id', selectedProducts);
           break;
         case 'delete':
           if (confirm(`Are you sure you want to delete ${selectedProducts.length} products?`)) {
-            await supabase
+            await sharedSupabase
               .from('products')
               .delete()
               .in('id', selectedProducts);
@@ -322,9 +322,9 @@ export const ProductManagement = () => {
 
   const handleAddProduct = async () => {
     try {
-      const { supabase } = await import('@/lib/supabase');
+      // Use shared supabase instance
       
-      const { data, error } = await supabase
+      const { data, error } = await sharedSupabase
         .from('products')
         .insert({
           sku: formData.sku || `SKU-${Date.now()}`,
@@ -344,7 +344,7 @@ export const ProductManagement = () => {
 
       // Add variants and images if any
       if (formData.variants.length > 0) {
-        await supabase
+        await sharedSupabase
           .from('product_variants')
           .insert(
             formData.variants.map(variant => ({
@@ -379,9 +379,9 @@ export const ProductManagement = () => {
     if (!editingProduct) return;
 
     try {
-      const { supabase } = await import('@/lib/supabase');
+      // Use shared supabase instance
       
-      const { error } = await supabase
+      const { error } = await sharedSupabase
         .from('products')
         .update({
           name: formData.name,
@@ -419,9 +419,9 @@ export const ProductManagement = () => {
     if (!confirm('Are you sure you want to delete this product?')) return;
 
     try {
-      const { supabase } = await import('@/lib/supabase');
+      // Use shared supabase instance
       
-      const { error } = await supabase
+      const { error } = await sharedSupabase
         .from('products')
         .delete()
         .eq('id', productId);
@@ -1361,6 +1361,7 @@ export const ProductManagement = () => {
                     onCheckedChange={handleSelectAll}
                   />
                 </TableHead>
+                <TableHead className="w-20">Image</TableHead>
                 <TableHead>Product</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Type</TableHead>
@@ -1378,6 +1379,19 @@ export const ProductManagement = () => {
                       checked={selectedProducts.includes(product.id)}
                       onCheckedChange={() => handleSelectProduct(product.id)}
                     />
+                  </TableCell>
+                  <TableCell>
+                    <div className="w-16 h-16 rounded-md overflow-hidden bg-gray-100">
+                      <img
+                        src={getProductImageUrl(product)}
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = '/placeholder.svg';
+                        }}
+                      />
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="space-y-1">

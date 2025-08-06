@@ -311,3 +311,262 @@ export async function testSupabaseConnection() {
     };
   }
 }
+
+// === SMART SIZING SYSTEM ===
+
+export interface SizeTemplate {
+  id: string;
+  category: string;
+  subcategory?: string;
+  template_name: string;
+  sizes: any;
+  display_type: 'grid' | 'dropdown' | 'two_step';
+  is_default: boolean;
+  is_active: boolean;
+}
+
+export interface ProductSmartTag {
+  id: string;
+  product_id: string;
+  tag_type: 'occasion' | 'style' | 'season' | 'body_type' | 'recommendation';
+  tag_value: string;
+  confidence_score: number;
+  source: 'manual' | 'ai' | 'user_behavior';
+}
+
+/**
+ * Get size template for a product category
+ */
+export async function getSizeTemplate(category: string) {
+  try {
+    const { data, error } = await supabase
+      .from('size_templates')
+      .select('*')
+      .eq('category', category)
+      .eq('is_active', true)
+      .eq('is_default', true)
+      .single();
+
+    if (error) throw error;
+
+    return {
+      success: true,
+      data,
+      error: null
+    };
+  } catch (error) {
+    console.error('getSizeTemplate error:', error);
+    return {
+      success: false,
+      data: null,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+/**
+ * Get product with smart tags
+ */
+export async function getProductWithSmartFeatures(slugOrId: string) {
+  try {
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .select(`
+        *,
+        images:product_images(*),
+        variants:product_variants(*),
+        smart_tags:product_smart_tags(*)
+      `)
+      .eq('slug', slugOrId)
+      .single();
+
+    if (productError) {
+      // Try by ID if slug fails
+      const { data: productById, error: idError } = await supabase
+        .from('products')
+        .select(`
+          *,
+          images:product_images(*),
+          variants:product_variants(*),
+          smart_tags:product_smart_tags(*)
+        `)
+        .eq('id', slugOrId)
+        .single();
+
+      if (idError) throw idError;
+      
+      return {
+        success: true,
+        data: productById,
+        error: null
+      };
+    }
+
+    // Sort images by sort_order
+    if (product?.images) {
+      product.images.sort((a: ProductImage, b: ProductImage) => a.sort_order - b.sort_order);
+    }
+
+    return {
+      success: true,
+      data: product,
+      error: null
+    };
+  } catch (error) {
+    console.error('getProductWithSmartFeatures error:', error);
+    return {
+      success: false,
+      data: null,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+/**
+ * Generate variants from size template (for admin use)
+ */
+export async function generateVariantsFromTemplate(productId: string, category: string) {
+  try {
+    // Get the template for this category
+    const templateResult = await getSizeTemplate(category);
+    if (!templateResult.success || !templateResult.data) {
+      throw new Error(`No template found for category: ${category}`);
+    }
+
+    const template = templateResult.data;
+    const variants = [];
+    const sizes = template.sizes;
+
+    // Generate variants based on category
+    switch (category) {
+      case 'suits':
+        ['short', 'regular', 'long'].forEach(length => {
+          if (sizes[length]) {
+            sizes[length].forEach((size: string) => {
+              variants.push({
+                product_id: productId,
+                sku: `${productId.substring(0, 8)}-${size}`,
+                size_display: size,
+                option1: size,
+                inventory_quantity: 0,
+                stock_quantity: 0,
+                price: 0,
+                status: 'active'
+              });
+            });
+          }
+        });
+        break;
+
+      case 'blazers':
+        if (sizes.regular) {
+          sizes.regular.forEach((size: string) => {
+            variants.push({
+              product_id: productId,
+              sku: `${productId.substring(0, 8)}-${size}`,
+              size_display: size,
+              option1: size,
+              inventory_quantity: 0,
+              stock_quantity: 0,
+              price: 0,
+              status: 'active'
+            });
+          });
+        }
+        break;
+
+      case 'dress_shirts':
+        if (sizes.fit_types && sizes.neck_sizes && sizes.sleeve_lengths) {
+          sizes.fit_types.forEach((fit: string) => {
+            sizes.neck_sizes.forEach((neck: string) => {
+              sizes.sleeve_lengths.forEach((sleeve: string) => {
+                const sizeDisplay = `${neck}/${sleeve}`;
+                variants.push({
+                  product_id: productId,
+                  sku: `${productId.substring(0, 8)}-${neck}-${sleeve.replace('-', '')}-${fit}`,
+                  size_display: sizeDisplay,
+                  option1: sizeDisplay,
+                  option2: fit,
+                  inventory_quantity: 0,
+                  stock_quantity: 0,
+                  price: 0,
+                  status: 'active'
+                });
+              });
+            });
+          });
+        }
+        break;
+
+      case 'sweaters':
+        if (sizes.sizes) {
+          sizes.sizes.forEach((size: string) => {
+            variants.push({
+              product_id: productId,
+              sku: `${productId.substring(0, 8)}-${size}`,
+              size_display: size,
+              option1: size,
+              inventory_quantity: 0,
+              stock_quantity: 0,
+              price: 0,
+              status: 'active'
+            });
+          });
+        }
+        break;
+
+      case 'dress_shoes':
+        if (sizes.whole_sizes) {
+          sizes.whole_sizes.forEach((size: number) => {
+            // Whole size
+            variants.push({
+              product_id: productId,
+              sku: `${productId.substring(0, 8)}-${size}`,
+              size_display: size.toString(),
+              option1: size.toString(),
+              inventory_quantity: 0,
+              stock_quantity: 0,
+              price: 0,
+              status: 'active'
+            });
+
+            // Half size if enabled
+            if (sizes.half_sizes_available) {
+              variants.push({
+                product_id: productId,
+                sku: `${productId.substring(0, 8)}-${size}5`,
+                size_display: `${size}.5`,
+                option1: `${size}.5`,
+                inventory_quantity: 0,
+                stock_quantity: 0,
+                price: 0,
+                status: 'active'
+              });
+            }
+          });
+        }
+        break;
+    }
+
+    // Insert variants
+    const { data, error } = await supabase
+      .from('product_variants')
+      .insert(variants)
+      .select();
+
+    if (error) throw error;
+
+    return {
+      success: true,
+      data,
+      error: null
+    };
+  } catch (error) {
+    console.error('generateVariantsFromTemplate error:', error);
+    return {
+      success: false,
+      data: [],
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}

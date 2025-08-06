@@ -53,7 +53,12 @@ export interface ProductVariant {
   price: number;
   size?: string;
   color?: string;
-  inventory_count: number;
+  option1?: string; // For sizes (expected by frontend)
+  option2?: string; // For colors (expected by frontend)
+  inventory_quantity?: number; // Using the correct field name
+  inventory_count: number; // Legacy support
+  available?: boolean; // Calculated field
+  inStock?: boolean; // Calculated field
   status: 'active' | 'out_of_stock';
 }
 
@@ -148,7 +153,7 @@ export async function getProduct(slugOrId: string) {
         `)
         .eq('id', slugOrId)
         .single();
-
+      
       data = result.data;
       error = result.error;
     }
@@ -167,6 +172,70 @@ export async function getProduct(slugOrId: string) {
     };
   } catch (error) {
     console.error('getProduct error:', error);
+    return {
+      success: false,
+      data: null,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+/**
+ * Get single product by ID (optimized for frontend)
+ */
+export async function getProductById(id: string) {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select(`
+        *,
+        images:product_images(*),
+        variants:product_variants(*)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+
+    // Sort images by sort_order
+    if (data?.images) {
+      data.images.sort((a: ProductImage, b: ProductImage) => a.sort_order - b.sort_order);
+    }
+
+    // Calculate additional fields the frontend expects
+    if (data) {
+      // Add calculated fields
+      const totalInventory = data.variants?.reduce(
+        (sum: number, variant: any) => sum + (variant.inventory_quantity || 0), 
+        0
+      ) || 0;
+
+      // Ensure variants have expected fields
+      const enhancedVariants = data.variants?.map((variant: any) => ({
+        ...variant,
+        available: (variant.inventory_quantity || 0) > 0,
+        inStock: (variant.inventory_quantity || 0) > 0
+      }));
+
+      return {
+        success: true,
+        data: {
+          ...data,
+          totalInventory,
+          variants: enhancedVariants,
+          inStock: totalInventory > 0
+        },
+        error: null
+      };
+    }
+
+    return {
+      success: true,
+      data,
+      error: null
+    };
+  } catch (error) {
+    console.error('getProductById error:', error);
     return {
       success: false,
       data: null,

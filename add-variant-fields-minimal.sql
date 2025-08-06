@@ -1,5 +1,4 @@
--- Simple migration: Add missing fields to product_variants table
--- These fields are expected by the frontend
+-- Minimal migration: Add only the essential fields needed by frontend
 
 -- Add option1 field (for sizes)
 ALTER TABLE public.product_variants 
@@ -15,14 +14,7 @@ ADD COLUMN IF NOT EXISTS available BOOLEAN GENERATED ALWAYS AS (
     COALESCE(inventory_quantity, 0) > 0
 ) STORED;
 
--- Create index for better performance on product detail queries
-CREATE INDEX IF NOT EXISTS idx_product_variants_product_id 
-ON public.product_variants(product_id);
-
--- Note: products table doesn't have slug column yet
--- Slug index will be added when slug column is created
-
--- Verify the changes
+-- Verify the new columns were added
 SELECT 
     column_name,
     data_type,
@@ -35,10 +27,3 @@ WHERE
     AND column_name IN ('option1', 'option2', 'available')
 ORDER BY 
     column_name;
-
--- Show count of variants that will have the new fields
-SELECT 
-    COUNT(*) as total_variants,
-    COUNT(CASE WHEN COALESCE(inventory_quantity, 0) > 0 THEN 1 END) as available_variants
-FROM 
-    public.product_variants;
